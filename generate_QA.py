@@ -1,13 +1,14 @@
 import os
-from openai import OpenAI
+import google.generativeai as genai
 
-# この部分を自分のAPIキーに書き換えてください
-# os.environ["OPENAI_API_KEY"] = "sk-..." 
-client = OpenAI()
+genai.configure(api_key="AIzaSyC4Mtj20GzugopibJdxC9rCzEf3EmiMQtA")
 
-def create_qa(lecture_text, num_questions, difficulty):
-    # --- ここがAIへの命令文（プロンプト）です ---
-    system_prompt = """
+# 使用するAIモデルを初期化
+
+model = genai.GenerativeModel(
+    'gemini-1.5-flash',
+    # AIへの指示（システムプロンプト）をここで設定します
+    system_instruction="""
 あなたは、講義内容から学習者の理解度を測るための問題を作成する専門家です。
 以下のルールに従って、与えられた講義内容から質の高いQAセットを作成してください。
 
@@ -40,23 +41,24 @@ def create_qa(lecture_text, num_questions, difficulty):
   ]
 }
 """
+)
 
-    user_prompt = f"""
+def create_qa(lecture_text, num_questions, difficulty):
+    # Gemini APIに渡すプロンプトを作成
+    prompt = f"""
 以下の講義内容から、{num_questions}個のQAセットを難易度「{difficulty}」で作成してください。
 
 ---講義内容---
 {lecture_text}
 """
-
+    
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o", # 精度と速度のバランスが良いモデル
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        return response.choices[0].message.content
+        # AIにJSON形式で出力するように指示
+        generation_config = genai.types.GenerationConfig(response_mime_type="application/json")
+        
+        # AIを呼び出してQAを生成
+        response = model.generate_content(prompt, generation_config=generation_config)
+        
+        return response.text
     except Exception as e:
         return f"エラーが発生しました: {e}"
